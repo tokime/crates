@@ -1,0 +1,15 @@
+[package]
+name = "tokistamp"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.74.0"
+description = "Small Unix timestamp and datestamp types with formatting helpers."
+license = "MIT"
+repository = "https://github.com/tokime/crates"
+homepage = "https://github.com/tokime/crates/tree/main/tokistamp"
+documentation = "https://docs.rs/tokistamp"
+readme = "README.md"
+keywords = ["timestamp", "datestamp", "unix", "time"]
+categories = ["date-and-time"]
+
+[dependencies]
