@@ -90,9 +90,10 @@ impl DateTime {
 
     /// Parses a `DateTime` from a supported string format.
     ///
-    /// Accepts `yyyy-MM-dd HH:mm:ss.SSS`, `yyyy-MM-dd HH:mm:ss`,
-    /// `yyyy-MM-dd HH:mm`, `yyyy-MM-dd`, `HH:mm:ss.SSS`, `HH:mm:ss`, and
-    /// `HH:mm`.
+    /// Accepts `yyyy-MM-dd'T'HH:mm:ss.SSSZ`,
+    /// `yyyy-MM-dd'T'HH:mm:ssZ`, `yyyy-MM-dd HH:mm:ss.SSS`,
+    /// `yyyy-MM-dd HH:mm:ss`, `yyyy-MM-dd HH:mm`, `yyyy-MM-dd`,
+    /// `HH:mm:ss.SSS`, `HH:mm:ss`, and `HH:mm`.
     ///
     /// Date-only strings use `00:00:00.000`. Time-only strings use
     /// `1970-01-01` as the date.
@@ -102,6 +103,12 @@ impl DateTime {
     /// range.
     #[inline(always)]
     pub fn parse(value: &str) -> Result<Self, ParseDateTimeError> {
+        if let Some((date, time)) = parse_rfc3339_utc(value)? {
+            let (year, month, day) = parse_date(date)?;
+            let (hour, minute, second, millisecond) = parse_time(time)?;
+            return Self::new(year, month, day, hour, minute, second, millisecond);
+        }
+
         if let Some((date, time)) = value.split_once(' ') {
             let (year, month, day) = parse_date(date)?;
             let (hour, minute, second, millisecond) = parse_time(time)?;
@@ -276,6 +283,28 @@ impl FromStr for DateTime {
     #[inline(always)]
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         Self::parse(value)
+    }
+}
+
+#[inline(always)]
+fn parse_rfc3339_utc(value: &str) -> Result<Option<(&str, &str)>, ParseDateTimeError> {
+    let Some(without_z) = value.strip_suffix('Z') else {
+        return Ok(None);
+    };
+    let Some((date, time)) = without_z.split_once('T') else {
+        return Ok(None);
+    };
+    if date.len() != 10 {
+        return Err(ParseDateTimeError::new(
+            "RFC 3339 date time must use yyyy-MM-ddTHH:mm:ssZ or yyyy-MM-ddTHH:mm:ss.SSSZ format",
+        ));
+    }
+    match time.len() {
+        8 => Ok(Some((date, time))),
+        12 if time.as_bytes()[8] == b'.' => Ok(Some((date, time))),
+        _ => Err(ParseDateTimeError::new(
+            "RFC 3339 date time must use yyyy-MM-ddTHH:mm:ssZ or yyyy-MM-ddTHH:mm:ss.SSSZ format",
+        )),
     }
 }
 

@@ -37,6 +37,20 @@ fn creates_date_time_from_full_string_without_milliseconds() {
 }
 
 #[test]
+fn creates_date_time_from_rfc3339_utc_string_with_milliseconds() {
+    let date_time = DateTime::parse("2026-05-08T12:34:56.789Z").unwrap();
+
+    assert_eq!(date_time.to_string(), "2026-05-08 12:34:56.789");
+}
+
+#[test]
+fn creates_date_time_from_rfc3339_utc_string_without_milliseconds() {
+    let date_time = DateTime::parse("2026-05-08T12:34:56Z").unwrap();
+
+    assert_eq!(date_time.to_string(), "2026-05-08 12:34:56.000");
+}
+
+#[test]
 fn creates_date_time_from_date_and_hour_minute_string() {
     let date_time = DateTime::parse("2026-05-08 12:34").unwrap();
 
@@ -163,6 +177,8 @@ fn rejects_inconsistent_fields() {
 fn rejects_unsupported_string_formats() {
     assert!(DateTime::parse("2026/05/08").is_err());
     assert!(DateTime::parse("2026-05-08T12:34:56").is_err());
+    assert!(DateTime::parse("2026-05-08T12:34:56+03:00").is_err());
+    assert!(DateTime::parse("2026-05-08T12:34Z").is_err());
     assert!(DateTime::parse("12:34:56.78").is_err());
     assert!(DateTime::parse("12:34:56.7890").is_err());
 }
