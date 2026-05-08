@@ -1,0 +1,18 @@
+[package]
+name = "beakid"
+version = "0.1.0"
+edition = "2024"
+description = "A Snowflake-like 64-bit unique ID generator with 100ms windows."
+license = "MIT OR Apache-2.0"
+repository = "https://example.invalid/beakid"
+readme = "README.md"
+keywords = ["id", "snowflake", "unique", "generator"]
+categories = ["data-structures"]
+
+[dependencies]
+time = { version = "0.3", default-features = false, features = ["formatting", "parsing"] }
+tokio = { version = "1", optional = true, features = ["macros", "rt-multi-thread", "time"] }
+
+[features]
+default = []
+tokio-rt = ["dep:tokio"]
