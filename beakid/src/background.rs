@@ -49,15 +49,3 @@ pub fn start_thread(generator: Arc<Generator>) -> Result<BackgroundHandle> {
         join: Some(join),
     })
 }
-
-/// Starts a Tokio task that refreshes `generator` until runtime shutdown.
-#[cfg(feature = "tokio-rt")]
-pub fn start_tokio_task(generator: Arc<Generator>) {
-    tokio::spawn(async move {
-        let mut interval = tokio::time::interval(UPDATE_INTERVAL);
-        loop {
-            interval.tick().await;
-            let _ = generator.refresh_hint();
-        }
-    });
-}

@@ -4,11 +4,11 @@ use std::thread;
 
 use beakid::generator::decompose_id;
 use beakid::{Config, Generator};
-use time::OffsetDateTime;
+use tokistamp::DateTime;
 
 #[test]
 fn generator_produces_unique_ids_across_threads() {
-    let config = Config::new(OffsetDateTime::UNIX_EPOCH, 17).unwrap();
+    let config = Config::new(DateTime::from_unix_millis(0), 17).unwrap();
     let generator = Arc::new(Generator::from_config(config).unwrap());
     let ids = Arc::new(Mutex::new(Vec::new()));
     let mut handles = Vec::new();

@@ -1,18 +1,19 @@
 [package]
 name = "beakid"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
-description = "A Snowflake-like 64-bit unique ID generator with 100ms windows."
-license = "MIT OR Apache-2.0"
-repository = "https://example.invalid/beakid"
+rust-version = "1.85.0"
+description = "Snowflake-like 64-bit unique ID generator with PostgreSQL BIGINT-friendly i64 IDs."
+license = "MIT"
+repository = "https://github.com/tokime/crates"
+homepage = "https://github.com/tokime/crates/tree/main/beakid"
+documentation = "https://docs.rs/beakid"
 readme = "README.md"
-keywords = ["id", "snowflake", "unique", "generator"]
-categories = ["data-structures"]
+keywords = ["id", "snowflake", "unique", "bigint", "postgres"]
+categories = ["data-structures", "database"]
 
 [dependencies]
-time = { version = "0.3", default-features = false, features = ["formatting", "parsing"] }
-tokio = { version = "1", optional = true, features = ["macros", "rt-multi-thread", "time"] }
+tokistamp = "0.1.1"
 
 [features]
 default = []
-tokio-rt = ["dep:tokio"]

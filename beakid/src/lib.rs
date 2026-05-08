@@ -54,7 +54,7 @@ fn singleton() -> Result<Arc<Generator>> {
 /// assert_eq!(id >> 63, 0);
 /// ```
 #[must_use]
-pub fn next_id() -> u64 {
+pub fn next_id() -> i64 {
     try_next_id().expect("failed to generate BeakId")
 }
 
@@ -70,7 +70,7 @@ pub fn next_id() -> u64 {
 /// let id = beakid::try_next_id()?;
 /// # Ok::<(), beakid::BeakIdError>(())
 /// ```
-pub fn try_next_id() -> Result<u64> {
+pub fn try_next_id() -> Result<i64> {
     singleton()?.next_id()
 }
 
@@ -95,15 +95,5 @@ pub fn start_background() -> Result<()> {
     let generator = singleton()?;
     let handle = background::start_thread(generator)?;
     let _ = BACKGROUND.set(handle);
-    Ok(())
-}
-
-/// Starts the singleton background updater on the current Tokio runtime.
-///
-/// The task is detached and runs until the runtime shuts down.
-#[cfg(feature = "tokio-rt")]
-pub fn start_tokio_background() -> Result<()> {
-    let generator = singleton()?;
-    background::start_tokio_task(generator);
     Ok(())
 }
