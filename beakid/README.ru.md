@@ -96,8 +96,8 @@ runtime-aware макросы, чтобы executor мог выполнять др
 ожидания:
 
 ```rust,ignore
-let id = beakid::tokio_next_id!(generator);
-let id = beakid::smol_next_id!(generator);
+let id = beakid::tokio_next_id!();
+let id = beakid::smol_next_id!();
 ```
 
 ### Явный генератор

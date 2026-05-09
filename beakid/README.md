@@ -93,8 +93,8 @@ Async applications should retry through runtime-aware macros so the executor can
 schedule other tasks while waiting:
 
 ```rust,ignore
-let id = beakid::tokio_next_id!(generator);
-let id = beakid::smol_next_id!(generator);
+let id = beakid::tokio_next_id!();
+let id = beakid::smol_next_id!();
 ```
 
 ### Explicit Generator
