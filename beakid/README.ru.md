@@ -60,11 +60,20 @@ BEAKID_WORKER_ID=42
 let id = beakid::next_id();
 ```
 
-`next_id()` паникует при некорректной конфигурации окружения. Если ошибку нужно
-обработать явно, используйте `try_next_id()`:
+`next_id()` паникует при некорректной конфигурации окружения. Если ошибки нужно
+обработать явно, включая временную блокировку генератора, используйте
+`try_next_id()`:
 
 ```rust,no_run
 let id = beakid::try_next_id()?;
+# Ok::<(), beakid::BeakIdError>(())
+```
+
+Получение абсолютного времени создания через epoch singleton-генератора:
+
+```rust,no_run
+let id = beakid::try_next_id()?;
+let created_at = beakid::timestamp(id)?;
 # Ok::<(), beakid::BeakIdError>(())
 ```
 
@@ -80,6 +89,16 @@ beakid::start_background()?;
 Фоновый поток работает примерно каждые 30 мс и синхронизирует генератор с
 реальным временем. Крейт не зависит от Tokio или другого async runtime.
 
+Когда генератор заблокирован, `try_next_id()` возвращает
+`BeakIdError::Blocked`. Async-приложениям лучше повторять генерацию через
+runtime-aware макросы, чтобы executor мог выполнять другие задачи во время
+ожидания:
+
+```rust,ignore
+let id = beakid::tokio_next_id!(generator);
+let id = beakid::smol_next_id!(generator);
+```
+
 ### Явный генератор
 
 ```rust,no_run
@@ -87,6 +106,7 @@ use std::time::UNIX_EPOCH;
 
 let generator = beakid::Generator::new(UNIX_EPOCH, 7)?;
 let id = generator.next_id()?;
+let created_at = generator.timestamp(id)?;
 # Ok::<(), beakid::BeakIdError>(())
 ```
 
@@ -108,7 +128,8 @@ pub struct Generator {
 Когда переполнение `sequence` переводит генератор в следующее 100мс окно,
 генератор обновляет реальное время. Если виртуальное окно оказалось впереди
 реального времени, генерация продолжается максимум на 10 виртуальных окон. Если
-лимит исчерпан, генерация ждёт, пока реальное время догонит виртуальное.
+лимит исчерпан, генерация возвращает `BeakIdError::Blocked`. Ожидание намеренно
+оставлено runtime-aware макросам или коду вызывающей стороны.
 
 ## Хранение
 

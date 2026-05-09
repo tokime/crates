@@ -1,12 +1,14 @@
 //! Core lock-free BeakId generation.
 
-use std::hint;
 use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
-use std::thread;
-use std::time::{Duration, SystemTime};
+use std::time::{SystemTime, UNIX_EPOCH};
+
+#[cfg(test)]
+use std::time::Duration;
 
 use crate::config::Config;
 use crate::error::{BeakIdError, Result};
+use tokistamp::Timestamp;
 
 /// Number of bits used by the timestamp component.
 pub const TIMESTAMP_BITS: u32 = 35;
@@ -71,35 +73,26 @@ impl Generator {
 
     /// Returns the next unique ID as a non-negative `i64`.
     pub fn next_id(&self) -> Result<i64> {
-        loop {
-            self.wait_while_updating();
-
-            if self.state.load(Ordering::Acquire) & STATE_BLOCKED != 0 {
-                self.refresh_hint()?;
-                self.wait_before_retry();
-                continue;
+        let state = loop {
+            let state = self.state.load(Ordering::Acquire);
+            if state & STATE_UPDATING == 0 {
+                break state;
             }
+            std::hint::spin_loop();
+        };
 
-            let id = self.id.load(Ordering::Acquire);
-            let next_id = id
-                .checked_add(SEQUENCE_INCREMENT)
-                .ok_or(BeakIdError::TimestampOverflow(u64::MAX))?;
-            validate_window(timestamp_from_raw(id))?;
-            validate_window(timestamp_from_raw(next_id))?;
-
-            if self
-                .id
-                .compare_exchange_weak(id, next_id, Ordering::AcqRel, Ordering::Acquire)
-                .is_ok()
-            {
-                if (id & TIMESTAMP_MASK) != (next_id & TIMESTAMP_MASK) {
-                    self.refresh_hint()?;
-                }
-                return Ok(id);
-            }
-
-            hint::spin_loop();
+        if state & STATE_BLOCKED != 0 {
+            return Err(BeakIdError::Blocked);
         }
+
+        let id = self.id.fetch_add(SEQUENCE_INCREMENT, Ordering::Relaxed);
+        let next_id = id.wrapping_add(SEQUENCE_INCREMENT);
+
+        if (id & TIMESTAMP_MASK) != (next_id & TIMESTAMP_MASK) {
+            self.refresh_hint()?;
+        }
+
+        Ok(id)
     }
 
     /// Reconciles the generator's virtual time with real time.
@@ -115,10 +108,22 @@ impl Generator {
             if state & STATE_UPDATING != 0 {
                 return Ok(real_window);
             }
+            if state & STATE_BLOCKED != 0 {
+                let timestamp = timestamp_part(real_window);
+                let id = self.id.load(Ordering::Relaxed);
+                if id > timestamp {
+                    let delta = ((id - timestamp) as u64) >> TIMESTAMP_SHIFT;
+                    if delta >= 8 {
+                        return Ok(real_window);
+                    }
+                }
+                self.state.store(0, Ordering::Release);
+                return Ok(real_window);
+            }
             match self.state.compare_exchange_weak(
                 state,
-                state | STATE_UPDATING,
-                Ordering::AcqRel,
+                STATE_UPDATING | STATE_BLOCKED,
+                Ordering::Release,
                 Ordering::Acquire,
             ) {
                 Ok(_) => break,
@@ -126,17 +131,7 @@ impl Generator {
             }
         }
 
-        let worker_id = self.worker_id();
-        self.reconcile_id_with_time(real_window, worker_id);
-
-        let id_window = timestamp_from_raw(self.id.load(Ordering::Acquire));
-        let new_state = if id_window > real_window.saturating_add(MAX_VIRTUAL_WINDOWS) {
-            STATE_BLOCKED
-        } else {
-            0
-        };
-        self.state.store(new_state, Ordering::Release);
-
+        self.reconcile_id_with_time(real_window);
         Ok(real_window)
     }
 
@@ -157,37 +152,65 @@ impl Generator {
         self.epoch
     }
 
-    fn reconcile_id_with_time(&self, real_window: u64, worker_id: u16) {
-        let mut id = self.id.load(Ordering::Acquire);
+    /// Returns the absolute creation timestamp encoded in `id`.
+    ///
+    /// BeakId stores only a 100ms window offset from the configured epoch. This
+    /// method uses the generator's epoch to reconstruct a [`tokistamp::Timestamp`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::time::UNIX_EPOCH;
+    ///
+    /// let generator = beakid::Generator::new(UNIX_EPOCH, 1)?;
+    /// let id = generator.next_id()?;
+    /// let created_at = generator.timestamp(id)?;
+    ///
+    /// assert!(created_at.as_i64() >= 0);
+    /// # Ok::<(), beakid::BeakIdError>(())
+    /// ```
+    pub fn timestamp(&self, id: i64) -> Result<Timestamp> {
+        let window = timestamp_window(id);
+        let offset_millis = window
+            .checked_mul(100)
+            .ok_or(BeakIdError::TimestampOverflow(window))?;
+        let epoch_millis = self
+            .epoch
+            .duration_since(UNIX_EPOCH)
+            .map_err(|_| BeakIdError::ClockBeforeEpoch)?
+            .as_millis();
+        let millis = epoch_millis
+            .checked_add(offset_millis as u128)
+            .ok_or(BeakIdError::TimestampOverflow(window))?;
+        let millis = i64::try_from(millis).map_err(|_| BeakIdError::TimestampOverflow(window))?;
+
+        Ok(Timestamp::from_millis(millis))
+    }
+
+    fn reconcile_id_with_time(&self, real_window: u64) {
+        let timestamp = timestamp_part(real_window);
+        let mut id = self.id.load(Ordering::Relaxed);
         loop {
-            let id_window = timestamp_from_raw(id);
-            if id_window >= real_window {
-                return;
+            if id > timestamp {
+                let delta = ((id - timestamp) as u64) >> TIMESTAMP_SHIFT;
+                if delta >= MAX_VIRTUAL_WINDOWS {
+                    self.state.store(STATE_BLOCKED, Ordering::Release);
+                    return;
+                }
+                break;
             }
 
-            let reset_id = raw_id(real_window, 0, worker_id);
+            let reset_id = (id & WORKER_MASK as i64) | timestamp;
             match self
                 .id
-                .compare_exchange_weak(id, reset_id, Ordering::AcqRel, Ordering::Acquire)
+                .compare_exchange_weak(id, reset_id, Ordering::Release, Ordering::Acquire)
             {
-                Ok(_) => return,
+                Ok(_) => break,
                 Err(current) => id = current,
             }
         }
-    }
 
-    fn wait_while_updating(&self) {
-        while self.state.load(Ordering::Acquire) & STATE_UPDATING != 0 {
-            hint::spin_loop();
-        }
-    }
-
-    fn wait_before_retry(&self) {
-        for _ in 0..64 {
-            hint::spin_loop();
-        }
-        thread::yield_now();
-        thread::sleep(Duration::from_millis(1));
+        self.state.store(0, Ordering::Release);
     }
 }
 
@@ -202,7 +225,7 @@ pub const fn construct_id(timestamp: u64, sequence: u64, worker_id: u16) -> i64 
 pub const fn decompose_id(id: i64) -> (u64, u64, u16) {
     let raw = id as u64;
     (
-        (raw >> TIMESTAMP_SHIFT) & MAX_TIMESTAMP,
+        timestamp_window(id),
         (raw >> SEQUENCE_SHIFT) & SEQUENCE_MASK,
         (raw & WORKER_MASK) as u16,
     )
@@ -214,7 +237,11 @@ const fn raw_id(timestamp: u64, sequence: u64, worker_id: u16) -> i64 {
         | ((worker_id as u64) & WORKER_MASK)) as i64
 }
 
-const fn timestamp_from_raw(id: i64) -> u64 {
+const fn timestamp_part(window: u64) -> i64 {
+    (window << TIMESTAMP_SHIFT) as i64
+}
+
+const fn timestamp_window(id: i64) -> u64 {
     ((id as u64) >> TIMESTAMP_SHIFT) & MAX_TIMESTAMP
 }
 
@@ -239,10 +266,19 @@ mod tests {
     use super::*;
 
     fn test_generator(window: u64, sequence: u64, worker_id: u16) -> Generator {
+        test_generator_with_real_window(window, sequence, worker_id, window)
+    }
+
+    fn test_generator_with_real_window(
+        window: u64,
+        sequence: u64,
+        worker_id: u16,
+        real_window: u64,
+    ) -> Generator {
         Generator {
             id: AtomicI64::new(raw_id(window, sequence, worker_id)),
             state: AtomicU64::new(0),
-            epoch: SystemTime::now() - Duration::from_millis(window * 100),
+            epoch: SystemTime::now() - Duration::from_millis(real_window * 100),
         }
     }
 
@@ -281,5 +317,41 @@ mod tests {
         let id = generator.next_id().unwrap();
 
         assert_eq!(decompose_id(id), (101, 0, 3));
+    }
+
+    #[test]
+    fn timestamp_uses_generator_epoch() {
+        let generator = Generator::new(UNIX_EPOCH, 1).unwrap();
+        let id = construct_id(123, 45, 1);
+
+        let timestamp = generator.timestamp(id).unwrap();
+
+        assert_eq!(timestamp.as_i64(), 12_300);
+    }
+
+    #[test]
+    fn refresh_blocks_when_virtual_time_is_exhausted() {
+        let generator = test_generator_with_real_window(110, 0, 3, 100);
+
+        generator.refresh_hint().unwrap();
+
+        assert_eq!(generator.next_id(), Err(BeakIdError::Blocked));
+    }
+
+    #[test]
+    fn blocked_generator_unblocks_after_real_time_catches_up() {
+        let mut generator = test_generator_with_real_window(110, 0, 3, 100);
+        generator.refresh_hint().unwrap();
+        assert_eq!(generator.next_id(), Err(BeakIdError::Blocked));
+
+        generator.epoch = SystemTime::now() - Duration::from_millis(102 * 100);
+        generator.refresh_hint().unwrap();
+
+        assert_eq!(generator.next_id(), Err(BeakIdError::Blocked));
+
+        generator.epoch = SystemTime::now() - Duration::from_millis(103 * 100);
+        generator.refresh_hint().unwrap();
+
+        assert!(generator.next_id().is_ok());
     }
 }

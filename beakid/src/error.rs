@@ -21,6 +21,8 @@ pub enum BeakIdError {
     ClockBeforeEpoch,
     /// The timestamp exceeded the 35-bit BeakId timestamp range.
     TimestampOverflow(u64),
+    /// All virtual time windows are exhausted and real time has not caught up.
+    Blocked,
     /// The standard background thread could not be spawned.
     BackgroundSpawnFailed(String),
 }
@@ -46,6 +48,7 @@ impl fmt::Display for BeakIdError {
             Self::TimestampOverflow(value) => {
                 write!(f, "timestamp window {value} exceeds the 35-bit range")
             }
+            Self::Blocked => f.write_str("generator is blocked: virtual windows exhausted"),
             Self::BackgroundSpawnFailed(value) => {
                 write!(f, "failed to spawn BeakId background thread: {value}")
             }

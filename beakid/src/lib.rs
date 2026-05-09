@@ -16,6 +16,7 @@ pub use background::BackgroundHandle;
 pub use config::Config;
 pub use error::{BeakIdError, Result};
 pub use generator::Generator;
+pub use tokistamp::Timestamp;
 
 static GENERATOR: OnceLock<Result<Arc<Generator>>> = OnceLock::new();
 static BACKGROUND: OnceLock<BackgroundHandle> = OnceLock::new();
@@ -74,12 +75,33 @@ pub fn try_next_id() -> Result<i64> {
     singleton()?.next_id()
 }
 
+/// Returns the absolute creation timestamp encoded in a BeakId generated with
+/// the singleton epoch.
+///
+/// This initializes the singleton if needed, so `BEAKID_EPOCH` must be present
+/// and valid.
+///
+/// # Examples
+///
+/// ```no_run
+/// # unsafe {
+/// std::env::set_var("BEAKID_EPOCH", "2025-01-01T00:00:00Z");
+/// # }
+/// let id = beakid::try_next_id()?;
+/// let created_at = beakid::timestamp(id)?;
+/// # Ok::<(), beakid::BeakIdError>(())
+/// ```
+pub fn timestamp(id: i64) -> Result<Timestamp> {
+    singleton()?.timestamp(id)
+}
+
 /// Starts the singleton background updater on a standard OS thread.
 ///
 /// The updater refreshes the real 100ms time-window hint roughly every 30ms.
 /// Calling this function more than once is harmless. If this function is not
 /// called, ID generation still works at normal rates, but extremely high
-/// sequence overflow workloads can block waiting for the hint to advance.
+/// sequence overflow workloads can return [`BeakIdError::Blocked`] until real
+/// time advances.
 ///
 /// # Examples
 ///

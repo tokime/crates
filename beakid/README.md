@@ -60,10 +60,18 @@ let id = beakid::next_id();
 ```
 
 `next_id()` panics if environment configuration is invalid. Use
-`try_next_id()` to handle errors:
+`try_next_id()` to handle errors, including temporary generator blocking:
 
 ```rust,no_run
 let id = beakid::try_next_id()?;
+# Ok::<(), beakid::BeakIdError>(())
+```
+
+Decode the absolute creation timestamp using the singleton epoch:
+
+```rust,no_run
+let id = beakid::try_next_id()?;
+let created_at = beakid::timestamp(id)?;
 # Ok::<(), beakid::BeakIdError>(())
 ```
 
@@ -79,6 +87,15 @@ beakid::start_background()?;
 The updater runs roughly every 30ms and reconciles the generator with real time.
 The crate does not depend on Tokio or any other async runtime.
 
+When the generator is blocked, `try_next_id()` returns `BeakIdError::Blocked`.
+Async applications should retry through runtime-aware macros so the executor can
+schedule other tasks while waiting:
+
+```rust,ignore
+let id = beakid::tokio_next_id!(generator);
+let id = beakid::smol_next_id!(generator);
+```
+
 ### Explicit Generator
 
 ```rust,no_run
@@ -86,6 +103,7 @@ use std::time::UNIX_EPOCH;
 
 let generator = beakid::Generator::new(UNIX_EPOCH, 7)?;
 let id = generator.next_id()?;
+let created_at = generator.timestamp(id)?;
 # Ok::<(), beakid::BeakIdError>(())
 ```
 
@@ -106,8 +124,9 @@ sequence while preserving the worker bits. No mutexes are used.
 
 When sequence overflow crosses a 100ms window boundary, the generator refreshes
 real time. If the generated virtual window is ahead of real time, generation can
-continue up to 10 virtual windows. If that limit is exhausted, generation waits
-until real time catches up.
+continue up to 10 virtual windows. If that limit is exhausted, generation returns
+`BeakIdError::Blocked`. Waiting is intentionally left to runtime-aware macros or
+caller code.
 
 ## Storage
 
