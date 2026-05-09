@@ -6,6 +6,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 #[cfg(test)]
 use std::time::Duration;
 
+use crate::beakid::BeakId;
 use crate::config::Config;
 use crate::error::{BeakIdError, Result};
 use tokistamp::Timestamp;
@@ -71,8 +72,8 @@ impl Generator {
         })
     }
 
-    /// Returns the next unique ID as a non-negative `i64`.
-    pub fn next_id(&self) -> Result<i64> {
+    /// Returns the next unique ID.
+    pub fn next_id(&self) -> Result<BeakId> {
         let state = loop {
             let state = self.state.load(Ordering::Acquire);
             if state & STATE_UPDATING == 0 {
@@ -92,7 +93,7 @@ impl Generator {
             self.refresh_hint()?;
         }
 
-        Ok(id)
+        Ok(BeakId::new(id))
     }
 
     /// Reconciles the generator's virtual time with real time.
@@ -169,8 +170,8 @@ impl Generator {
     /// assert!(created_at.as_i64() >= 0);
     /// # Ok::<(), beakid::BeakIdError>(())
     /// ```
-    pub fn timestamp(&self, id: i64) -> Result<Timestamp> {
-        let window = timestamp_window(id);
+    pub fn timestamp(&self, id: BeakId) -> Result<Timestamp> {
+        let window = id.timestamp_window();
         let offset_millis = window
             .checked_mul(100)
             .ok_or(BeakIdError::TimestampOverflow(window))?;
@@ -216,19 +217,14 @@ impl Generator {
 
 /// Constructs the final 64-bit ID from already validated parts.
 #[must_use]
-pub const fn construct_id(timestamp: u64, sequence: u64, worker_id: u16) -> i64 {
-    raw_id(timestamp, sequence, worker_id)
+pub const fn construct_id(timestamp: u64, sequence: u64, worker_id: u16) -> BeakId {
+    BeakId::new(raw_id(timestamp, sequence, worker_id))
 }
 
 /// Decodes an ID into `(timestamp, sequence, worker_id)`.
 #[must_use]
-pub const fn decompose_id(id: i64) -> (u64, u64, u16) {
-    let raw = id as u64;
-    (
-        timestamp_window(id),
-        (raw >> SEQUENCE_SHIFT) & SEQUENCE_MASK,
-        (raw & WORKER_MASK) as u16,
-    )
+pub const fn decompose_id(id: BeakId) -> (u64, u64, u16) {
+    id.parts()
 }
 
 const fn raw_id(timestamp: u64, sequence: u64, worker_id: u16) -> i64 {
@@ -239,10 +235,6 @@ const fn raw_id(timestamp: u64, sequence: u64, worker_id: u16) -> i64 {
 
 const fn timestamp_part(window: u64) -> i64 {
     (window << TIMESTAMP_SHIFT) as i64
-}
-
-const fn timestamp_window(id: i64) -> u64 {
-    ((id as u64) >> TIMESTAMP_SHIFT) & MAX_TIMESTAMP
 }
 
 fn current_window(epoch: SystemTime) -> Result<u64> {
@@ -285,7 +277,7 @@ mod tests {
     #[test]
     fn constructs_expected_layout() {
         let id = construct_id(0b101, 0b11, 42);
-        assert_eq!(id >> 63, 0);
+        assert_eq!(id.as_i64() >> 63, 0);
         assert_eq!(decompose_id(id), (0b101, 0b11, 42));
     }
 

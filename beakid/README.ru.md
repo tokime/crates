@@ -2,15 +2,15 @@
 
 [English](README.md) | Русский
 
-Snowflake-подобные 64-битные уникальные ID для Rust. Значения возвращаются как
-неотрицательные `i64`, поэтому их можно хранить в PostgreSQL `BIGINT`.
+Snowflake-подобные 64-битные уникальные ID для Rust. `BeakId` оборачивает
+неотрицательное `i64`, поэтому значение можно хранить в PostgreSQL `BIGINT`.
 
 ```rust,no_run
 fn main() -> Result<(), beakid::BeakIdError> {
     beakid::start_background()?;
 
     let id = beakid::try_next_id()?;
-    assert!(id >= 0);
+    assert!(id.as_i64() >= 0);
 
     Ok(())
 }
@@ -31,8 +31,8 @@ fn main() -> Result<(), beakid::BeakIdError> {
 - `sequence`: счётчик внутри окна
 - `worker`: worker id генератора в диапазоне `0..=1023`
 
-Так как старший бит всегда равен нулю, все сгенерированные ID являются
-неотрицательными `i64`.
+Так как старший бит всегда равен нулю, все сгенерированные ID можно хранить как
+неотрицательные `i64`.
 
 ## Конфигурация
 
@@ -66,6 +66,7 @@ let id = beakid::next_id();
 
 ```rust,no_run
 let id = beakid::try_next_id()?;
+let db_id = id.as_i64();
 # Ok::<(), beakid::BeakIdError>(())
 ```
 
@@ -141,3 +142,6 @@ id BIGINT PRIMARY KEY
 
 Сгенерированные значения сортируются примерно по времени создания в рамках
 выбранной epoch и схемы worker id.
+
+Используйте `id.as_i64()` перед записью в базу и `BeakId::new(value)` при чтении
+ID обратно.

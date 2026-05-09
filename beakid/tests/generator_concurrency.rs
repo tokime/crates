@@ -34,6 +34,6 @@ fn generator_produces_unique_ids_across_threads() {
 
     assert_eq!(ids.len(), 16_000);
     assert_eq!(unique.len(), ids.len());
-    assert!(ids.iter().all(|id| id >> 63 == 0));
+    assert!(ids.iter().all(|id| id.as_i64() >> 63 == 0));
     assert!(ids.iter().all(|id| decompose_id(*id).2 == 17));
 }

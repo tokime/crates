@@ -5,6 +5,7 @@
 //! Public API for BeakId.
 
 pub mod background;
+pub mod beakid;
 pub mod config;
 pub mod error;
 pub mod generator;
@@ -13,6 +14,7 @@ pub mod macros;
 use std::sync::{Arc, OnceLock};
 
 pub use background::BackgroundHandle;
+pub use beakid::BeakId;
 pub use config::Config;
 pub use error::{BeakIdError, Result};
 pub use generator::Generator;
@@ -52,10 +54,10 @@ fn singleton() -> Result<Arc<Generator>> {
 /// std::env::set_var("BEAKID_WORKER_ID", "42");
 /// # }
 /// let id = beakid::next_id();
-/// assert_eq!(id >> 63, 0);
+/// assert!(id.as_i64() >= 0);
 /// ```
 #[must_use]
-pub fn next_id() -> i64 {
+pub fn next_id() -> BeakId {
     try_next_id().expect("failed to generate BeakId")
 }
 
@@ -71,7 +73,7 @@ pub fn next_id() -> i64 {
 /// let id = beakid::try_next_id()?;
 /// # Ok::<(), beakid::BeakIdError>(())
 /// ```
-pub fn try_next_id() -> Result<i64> {
+pub fn try_next_id() -> Result<BeakId> {
     singleton()?.next_id()
 }
 
@@ -91,7 +93,7 @@ pub fn try_next_id() -> Result<i64> {
 /// let created_at = beakid::timestamp(id)?;
 /// # Ok::<(), beakid::BeakIdError>(())
 /// ```
-pub fn timestamp(id: i64) -> Result<Timestamp> {
+pub fn timestamp(id: BeakId) -> Result<Timestamp> {
     singleton()?.timestamp(id)
 }
 
