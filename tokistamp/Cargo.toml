@@ -1,6 +1,6 @@
 [package]
 name = "tokistamp"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 rust-version = "1.74.0"
 description = "Small Unix timestamp and datestamp types with formatting helpers."
