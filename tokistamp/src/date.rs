@@ -2,10 +2,12 @@ use std::fmt;
 use std::ops::Sub;
 use std::str::FromStr;
 
+use serde::{Deserialize, Serialize};
+
 use crate::{DateTime, Duration, ParseDateTimeError};
 
 /// UTC calendar date without a timezone.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct Date {
     year: i32,
     month: u8,

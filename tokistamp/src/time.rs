@@ -2,10 +2,12 @@ use std::fmt;
 use std::ops::Sub;
 use std::str::FromStr;
 
+use serde::{Deserialize, Serialize};
+
 use crate::{DateTime, Duration, ParseDateTimeError};
 
 /// UTC time of day with millisecond precision and no timezone.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct Time {
     hour: u8,
     minute: u8,

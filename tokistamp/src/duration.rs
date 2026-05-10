@@ -1,8 +1,10 @@
 use std::fmt;
 use std::ops::{Add, Sub};
 
+use serde::{Deserialize, Serialize};
+
 /// Duration stored as milliseconds.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct Duration(i64);
 
 impl Duration {

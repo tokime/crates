@@ -1,10 +1,12 @@
 use std::fmt;
 use std::ops::{Add, Sub};
 
+use serde::{Deserialize, Serialize};
+
 use crate::{DateTime, Duration};
 
 /// Milliseconds since the Unix epoch.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct Timestamp(i64);
 
 impl Timestamp {

@@ -13,3 +13,4 @@ keywords = ["timestamp", "datestamp", "unix", "time"]
 categories = ["date-and-time"]
 
 [dependencies]
+serde = { version = "1.0.228", features = ["derive"] }

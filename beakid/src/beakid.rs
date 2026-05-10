@@ -2,6 +2,8 @@
 
 use std::fmt;
 
+use serde::{Deserialize, Serialize};
+
 use crate::generator::{MAX_TIMESTAMP, SEQUENCE_BITS, WORKER_BITS};
 
 const WORKER_MASK: u64 = (1_u64 << WORKER_BITS) - 1;
@@ -12,7 +14,7 @@ const TIMESTAMP_SHIFT: u32 = WORKER_BITS + SEQUENCE_BITS;
 /// A unique 64-bit identifier produced by [`crate::Generator`].
 ///
 /// Values are always non-negative and can be stored in PostgreSQL `BIGINT`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct BeakId(i64);
 
 impl BeakId {

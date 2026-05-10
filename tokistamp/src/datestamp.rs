@@ -1,12 +1,14 @@
 use std::fmt;
 use std::ops::{Add, Sub};
 
+use serde::{Deserialize, Serialize};
+
 use crate::{Date, DateTime, Duration, Timestamp};
 
 const MILLIS_PER_DAY: i64 = 86_400_000;
 
 /// Days since the Unix epoch.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct Datestamp(i32);
 
 impl Datestamp {

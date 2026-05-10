@@ -4,6 +4,8 @@ use std::ops::Sub;
 use std::str::FromStr;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use serde::{Deserialize, Serialize};
+
 use crate::{Date, Duration, Time};
 
 const DEFAULT_YEAR: i32 = 1970;
@@ -11,7 +13,7 @@ const DEFAULT_MONTH: u8 = 1;
 const DEFAULT_DAY: u8 = 1;
 
 /// UTC date and time with millisecond precision and no timezone.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct DateTime {
     year: i32,
     month: u8,
