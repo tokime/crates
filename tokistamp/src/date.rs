@@ -2,12 +2,12 @@ use std::fmt;
 use std::ops::Sub;
 use std::str::FromStr;
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::{DateTime, Duration, ParseDateTimeError};
+use crate::{DateTime, Datestamp, Duration, ParseDateTimeError};
 
 /// UTC calendar date without a timezone.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Date {
     year: i32,
     month: u8,
@@ -107,5 +107,42 @@ impl FromStr for Date {
     #[inline(always)]
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         Self::parse(value)
+    }
+}
+
+impl From<Datestamp> for Date {
+    /// Converts Unix epoch days to `Date`.
+    #[inline(always)]
+    fn from(datestamp: Datestamp) -> Self {
+        DateTime::from_unix_millis(datestamp.as_i32() as i64 * 86_400_000).date()
+    }
+}
+
+impl Serialize for Date {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        if serializer.is_human_readable() {
+            serializer.serialize_str(&self.to_string())
+        } else {
+            serializer.serialize_i32(Datestamp::from(*self).as_i32())
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for Date {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        if deserializer.is_human_readable() {
+            let value = String::deserialize(deserializer)?;
+            Self::parse(&value).map_err(serde::de::Error::custom)
+        } else {
+            i32::deserialize(deserializer)
+                .map(Datestamp::from)
+                .map(Self::from)
+        }
     }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "beakid"
-version = "0.2.4"
+version = "0.2.5"
 edition = "2024"
 rust-version = "1.85.0"
 description = "Snowflake-like 64-bit unique ID generator with PostgreSQL BIGINT-friendly i64 IDs."
@@ -13,5 +13,5 @@ keywords = ["id", "snowflake", "unique", "bigint", "postgres"]
 categories = ["data-structures", "database"]
 
 [dependencies]
-tokistamp = "0.1.1"
+tokistamp = "0.1.3"
 serde = { version = "1.0.228", features = ["derive"] }

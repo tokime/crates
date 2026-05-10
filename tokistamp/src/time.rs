@@ -2,12 +2,12 @@ use std::fmt;
 use std::ops::Sub;
 use std::str::FromStr;
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::{DateTime, Duration, ParseDateTimeError};
 
 /// UTC time of day with millisecond precision and no timezone.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Time {
     hour: u8,
     minute: u8,
@@ -151,5 +151,44 @@ impl FromStr for Time {
     #[inline(always)]
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         Self::parse(value)
+    }
+}
+
+impl Serialize for Time {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        if serializer.is_human_readable() {
+            serializer.serialize_str(&self.to_string())
+        } else {
+            serializer.serialize_i64(self.as_day_millis())
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for Time {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        if deserializer.is_human_readable() {
+            let value = String::deserialize(deserializer)?;
+            Self::parse(&value).map_err(serde::de::Error::custom)
+        } else {
+            let milliseconds = i64::deserialize(deserializer)?;
+            if !(0..86_400_000).contains(&milliseconds) {
+                return Err(serde::de::Error::custom(
+                    "time milliseconds must be in 0..86400000",
+                ));
+            }
+
+            let hour = (milliseconds / 3_600_000) as u8;
+            let minute = (milliseconds % 3_600_000 / 60_000) as u8;
+            let second = (milliseconds % 60_000 / 1_000) as u8;
+            let millisecond = (milliseconds % 1_000) as u16;
+
+            Ok(Self::from_validated(hour, minute, second, millisecond))
+        }
     }
 }

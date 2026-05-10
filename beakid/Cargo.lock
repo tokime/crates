@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "beakid"
-version = "0.2.4"
+version = "0.2.5"
 dependencies = [
  "serde",
  "tokistamp",
@@ -71,9 +71,12 @@ dependencies = [
 
 [[package]]
 name = "tokistamp"
-version = "0.1.1"
+version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7e5ed8e20a2b20b4dcd9a9146bccaea96b585f83679efee298e8d82755fe1bab"
+checksum = "c45c5861e2125c80e2c4f4990aa5019bfc6d7caf5ad10f4b6a270bffa7c6f0c1"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "unicode-ident"

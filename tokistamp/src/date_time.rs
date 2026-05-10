@@ -4,7 +4,7 @@ use std::ops::Sub;
 use std::str::FromStr;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::{Date, Duration, Time};
 
@@ -13,7 +13,7 @@ const DEFAULT_MONTH: u8 = 1;
 const DEFAULT_DAY: u8 = 1;
 
 /// UTC date and time with millisecond precision and no timezone.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DateTime {
     year: i32,
     month: u8,
@@ -285,6 +285,33 @@ impl FromStr for DateTime {
     #[inline(always)]
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         Self::parse(value)
+    }
+}
+
+impl Serialize for DateTime {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        if serializer.is_human_readable() {
+            serializer.serialize_str(&self.to_string())
+        } else {
+            serializer.serialize_i64(self.as_unix_millis())
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for DateTime {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        if deserializer.is_human_readable() {
+            let value = String::deserialize(deserializer)?;
+            Self::parse(&value).map_err(serde::de::Error::custom)
+        } else {
+            i64::deserialize(deserializer).map(Self::from_unix_millis)
+        }
     }
 }
 

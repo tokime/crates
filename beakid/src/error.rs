@@ -25,6 +25,8 @@ pub enum BeakIdError {
     Blocked,
     /// The standard background thread could not be spawned.
     BackgroundSpawnFailed(String),
+    /// Invalid Base62 format
+    InvalidBase62,
 }
 
 impl fmt::Display for BeakIdError {
@@ -52,6 +54,7 @@ impl fmt::Display for BeakIdError {
             Self::BackgroundSpawnFailed(value) => {
                 write!(f, "failed to spawn BeakId background thread: {value}")
             }
+            Self::InvalidBase62 => write!(f, "invalid base62"),
         }
     }
 }

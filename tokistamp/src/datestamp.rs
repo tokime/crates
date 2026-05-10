@@ -1,14 +1,14 @@
 use std::fmt;
 use std::ops::{Add, Sub};
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::{Date, DateTime, Duration, Timestamp};
 
 const MILLIS_PER_DAY: i64 = 86_400_000;
 
 /// Days since the Unix epoch.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Datestamp(i32);
 
 impl Datestamp {
@@ -106,5 +106,34 @@ impl fmt::Display for Datestamp {
         DateTime::from_unix_millis(self.as_unix_millis())
             .date()
             .fmt(formatter)
+    }
+}
+
+impl Serialize for Datestamp {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        if serializer.is_human_readable() {
+            serializer.serialize_str(&self.to_string())
+        } else {
+            serializer.serialize_i32(self.0)
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for Datestamp {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        if deserializer.is_human_readable() {
+            let value = String::deserialize(deserializer)?;
+            Date::parse(&value)
+                .map(Self::from)
+                .map_err(serde::de::Error::custom)
+        } else {
+            i32::deserialize(deserializer).map(Self)
+        }
     }
 }
