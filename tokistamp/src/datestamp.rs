@@ -1,5 +1,6 @@
 use std::fmt;
 use std::ops::{Add, Sub};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -15,6 +16,17 @@ impl Datestamp {
     /// Creates a datestamp from Unix epoch days.
     #[inline(always)]
     pub fn from_days(days: i32) -> Self {
+        Self(days)
+    }
+
+    /// Returns the current Unix epoch days from `SystemTime::now()`.
+    #[inline(always)]
+    pub fn now() -> Self {
+        let elapsed = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system time must not be before Unix epoch");
+        let days = (elapsed.as_millis() / MILLIS_PER_DAY as u128) as i32;
+
         Self(days)
     }
 

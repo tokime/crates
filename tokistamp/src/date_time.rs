@@ -82,10 +82,7 @@ impl DateTime {
         let elapsed = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("system time must not be before Unix epoch");
-        let milliseconds = elapsed
-            .as_millis()
-            .try_into()
-            .expect("current Unix milliseconds must fit into i64");
+        let milliseconds = elapsed.as_millis() as i64;
 
         Self::from_unix_millis(milliseconds)
     }

@@ -1,3 +1,5 @@
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use tokistamp::{DateTime, Duration, Timestamp};
 
 #[test]
@@ -12,6 +14,22 @@ fn creates_timestamp_with_from_i64() {
     let timestamp = Timestamp::from(123_i64);
 
     assert_eq!(timestamp.as_i64(), 123);
+}
+
+#[test]
+fn now_creates_current_timestamp() {
+    let before = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as i64;
+    let timestamp = Timestamp::now();
+    let after = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as i64;
+
+    assert!(timestamp.as_i64() >= before);
+    assert!(timestamp.as_i64() <= after);
 }
 
 #[test]

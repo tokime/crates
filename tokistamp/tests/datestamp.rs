@@ -1,4 +1,8 @@
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use tokistamp::{Date, DateTime, Datestamp, Duration};
+
+const MILLIS_PER_DAY: u128 = 86_400_000;
 
 #[test]
 fn creates_datestamp_from_days() {
@@ -12,6 +16,24 @@ fn creates_datestamp_with_from_i32() {
     let datestamp = Datestamp::from(2_i32);
 
     assert_eq!(datestamp.as_i32(), 2);
+}
+
+#[test]
+fn now_creates_current_datestamp() {
+    let before = (SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis()
+        / MILLIS_PER_DAY) as i32;
+    let datestamp = Datestamp::now();
+    let after = (SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis()
+        / MILLIS_PER_DAY) as i32;
+
+    assert!(datestamp.as_i32() >= before);
+    assert!(datestamp.as_i32() <= after);
 }
 
 #[test]

@@ -1,5 +1,6 @@
 use std::fmt;
 use std::ops::{Add, Sub};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -14,6 +15,16 @@ impl Timestamp {
     #[inline(always)]
     pub fn from_millis(milliseconds: i64) -> Self {
         Self(milliseconds)
+    }
+
+    /// Returns the current Unix epoch milliseconds from `SystemTime::now()`.
+    #[inline(always)]
+    pub fn now() -> Self {
+        let elapsed = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system time must not be before Unix epoch");
+
+        Self(elapsed.as_millis() as i64)
     }
 
     /// Returns the timestamp as Unix epoch milliseconds.
